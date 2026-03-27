@@ -878,10 +878,11 @@ function buildHtmlBody(thumbMap){
   const rows=ms.map((m,i)=>{
     const cfg=CFG[m.type]||CFG.other;
     const oi=obisL(m.obisCode);
-    const isA=m.mv==='analog';
+    const isA=m.mv==='analog'||!!(m.readingNT);
+    const htLabel=isA&&m.readingNT?'HT: ':'';
     const standCell=m.readingNT
-      ?`<span style="font-size:20px;font-weight:800;color:#1a1a2e">${m.reading||'–'} ${cfg.unit}</span><br><span style="color:#555;font-size:16px;font-weight:600">NT: ${m.readingNT} ${cfg.unit}</span>`
-      :`<span style="font-size:22px;font-weight:800;color:#1a1a2e">${m.reading||'–'} ${cfg.unit}</span>`;
+      ?`<span style="font-size:13px;font-weight:700;color:#888;display:block;margin-bottom:2px">HT</span><span style="font-size:22px;font-weight:800;color:#1a1a2e;font-family:monospace">${m.reading||'–'} ${cfg.unit}</span><br><span style="font-size:13px;font-weight:700;color:#888;display:block;margin-top:6px;margin-bottom:2px">NT</span><span style="color:#333;font-size:18px;font-weight:700;font-family:monospace">${m.readingNT} ${cfg.unit}</span>`
+      :`<span style="font-size:22px;font-weight:800;color:#1a1a2e;font-family:monospace">${m.reading||'–'} ${cfg.unit}</span>`;
     const photoCell=m.photoData
       ?(thumbMap[m.id]
         ?`<img src="${thumbMap[m.id]}" style="width:100px;height:75px;object-fit:cover;border-radius:6px;border:1px solid #ddd">`
