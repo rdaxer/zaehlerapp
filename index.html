@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d0f14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ZählerApp">
+<meta name="description" content="Zählerstände erfassen, archivieren und digital versenden">
+<title>ZählerApp</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-512.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f14;--surf:#161820;--surf2:#1e2028;--brd:#2a2d38;
+  --acc:#e8ff47;--acc2:#47b4ff;--acc3:#ff6b47;
+  --txt:#f0f2f8;--txt2:#8b8fa8;--txt3:#555870;
+  --ok:#47ffaa;--r:14px;--rs:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:'Syne',sans-serif}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.77,0,.18,1),opacity .35s}
+.screen.hidden{transform:translateX(100%);opacity:0;pointer-events:none}
+.hdr{padding:52px 20px 14px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.hdr-back{width:40px;height:40px;border-radius:50%;background:var(--surf2);border:1px solid var(--brd);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;flex-shrink:0}
+.hdr h1{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.hdr-tag{margin-left:auto;background:var(--acc);color:#000;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;font-family:'DM Mono',monospace;white-space:nowrap}
+.scroll{flex:1;overflow-y:auto;padding:0 20px 110px;-webkit-overflow-scrolling:touch}
+.scroll::-webkit-scrollbar{display:none}
+.hero{padding:50px 20px 20px}
+.hero .kicker{font-family:'DM Mono',monospace;font-size:11px;color:var(--acc);letter-spacing:2px;margin-bottom:12px}
+.hero h1{font-size:36px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+.hero h1 span{color:var(--acc)}
+.hero p{color:var(--txt2);margin-top:10px;font-size:14px;line-height:1.5}
+.guide{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:16px;margin-top:14px}
+.guide-tabs{display:flex;gap:6px;margin-bottom:12px}
+.gtab{flex:1;padding:8px 6px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--surf2);font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--txt3);cursor:pointer;text-align:center;transition:all .2s}
+.gtab.on{border-color:var(--acc);color:var(--acc);background:#e8ff4712}
+.gpanel{display:none}.gpanel.on{display:block}
+.grow{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}.grow:last-child{margin-bottom:0}
+.gpill{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0;margin-top:1px}
+.gpill.ht{background:#e8ff4720;color:var(--acc);border:1px solid #e8ff4740}
+.gpill.nt{background:#47b4ff20;color:var(--acc2);border:1px solid #47b4ff40}
+.gpill.es{background:#ff6b4720;color:var(--acc3);border:1px solid #ff6b4740}
+.gpill.nr{background:#ffffff12;color:var(--txt2);border:1px solid var(--brd)}
+.gtxt{font-size:12px;color:var(--txt2);line-height:1.5}
+.gtxt strong{color:var(--txt)}
+.gtxt em{font-family:'DM Mono',monospace;font-size:11px;font-style:normal;color:var(--acc2)}
+.api-badge{display:inline-flex;align-items:center;gap:7px;margin-top:12px;border:1px solid var(--brd);border-radius:20px;padding:5px 12px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s}
+.api-badge.set{border-color:#47ffaa66;color:var(--ok)}
+.api-badge.unset{border-color:#ff6b4766;color:var(--acc3)}
+.sc{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:18px}
+.sc-lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--txt3);letter-spacing:1.5px;margin-bottom:6px}
+.sc-addr{font-size:15px;font-weight:600;margin-bottom:4px}
+.sc-meta{font-size:12px;color:var(--txt2)}
+.sc-cnt{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:var(--surf2);border-radius:20px;padding:4px 12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--acc)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;border-radius:var(--r);font-family:'Syne',sans-serif;font-size:15px;font-weight:700;cursor:pointer;border:none;transition:transform .15s,opacity .15s}
+.btn:active{transform:scale(.97);opacity:.85}
+.btn-p{background:var(--acc);color:#000}
+.btn-s{background:var(--surf2);color:var(--txt);border:1px solid var(--brd)}
+.btn-ex{background:#47b4ff18;color:var(--acc2);border:1px solid #47b4ff44}
+.acts{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.pi{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:14px;margin-bottom:10px;cursor:pointer}
+.pi:active{border-color:var(--acc)}
+.pi-addr{font-size:14px;font-weight:700}
+.pi-meta{font-size:12px;color:var(--txt2);margin-top:3px}
+.pi-row{display:flex;justify-content:space-between;align-items:center}
+.pi-b{font-family:'DM Mono',monospace;font-size:10px;background:var(--surf2);color:var(--txt2);padding:2px 8px;border-radius:10px}
+.fsec{margin-bottom:20px}
+.flbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--txt3);letter-spacing:1.5px;margin-bottom:8px;display:block}
+.fi{width:100%;background:var(--surf);border:1px solid var(--brd);border-radius:var(--rs);padding:14px 16px;color:var(--txt);font-family:'Syne',sans-serif;font-size:15px;outline:none;transition:border-color .2s}
+.fi:focus{border-color:var(--acc)}.fi::placeholder{color:var(--txt3)}
+textarea.fi{resize:none;min-height:80px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.loc{display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--brd);border-radius:var(--rs);padding:14px 16px;cursor:pointer;margin-bottom:10px}
+.loc:active{border-color:var(--acc2)}
+.loc span{font-size:14px;color:var(--txt2);flex:1}
+.spin{width:18px;height:18px;border:2px solid var(--brd);border-top-color:var(--acc2);border-radius:50%;animation:spin .6s linear infinite}
+.mlist{display:flex;flex-direction:column;gap:12px}
+.mc{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);overflow:hidden}
+.mch{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--brd);position:relative}
+.mi{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.mi.elec{background:#e8ff4720}.mi.water{background:#47b4ff20}.mi.gas{background:#ff6b4720}.mi.heat{background:#ff47a820}
+.mcb{padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.mtype{display:flex;gap:6px}
+.mtype-btn{flex:1;padding:7px;border-radius:var(--rs);border:1px solid var(--brd);background:var(--surf2);font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--txt3);cursor:pointer;text-align:center}
+.mtype-btn.on{border-color:var(--acc);color:var(--acc);background:#e8ff4712}
+.pharea{width:100%;aspect-ratio:4/3;background:var(--surf2);border-radius:var(--rs);border:2px dashed var(--brd);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative}
+.pharea:active{border-color:var(--acc)}
+.pharea img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.ph-hint{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--txt3);font-size:12px;text-align:center;padding:16px;z-index:1}
+.ph-hint .ico{font-size:36px}
+.ph-hint small{font-size:10px;line-height:1.7}
+.ai-row{display:flex;align-items:center;gap:8px;border-radius:var(--rs);padding:10px 12px;font-size:12px}
+.ai-row.wait{background:var(--surf2);color:var(--acc2)}
+.ai-row.ok{background:#47ffaa10;border:1px solid #47ffaa33;color:var(--ok)}
+.ai-row.err{background:#ff6b4710;border:1px solid #ff6b4733;color:var(--acc3)}
+.ai-row.info{background:#47b4ff10;border:1px solid #47b4ff33;color:var(--acc2)}
+.ai-dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1s infinite;flex-shrink:0}
+.ai-retry{background:var(--surf);border:1px solid var(--brd);border-radius:6px;color:var(--txt2);font-size:11px;padding:3px 8px;cursor:pointer;margin-left:auto;white-space:nowrap}
+.fld{display:flex;align-items:center;gap:8px}
+.fld-lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--txt3);white-space:nowrap;min-width:52px}
+.fld-in{flex:1;background:var(--surf2);border:1px solid var(--brd);border-radius:var(--rs);padding:10px 12px;font-family:'DM Mono',monospace;font-size:20px;font-weight:500;outline:none;text-align:center;transition:border-color .2s;color:var(--acc)}
+.fld-in.nt{color:var(--acc2);font-size:17px}
+.fld-in.ser{color:var(--acc2);font-size:13px}
+.fld-in.obi{color:var(--txt2);font-size:13px}
+.fld-in:focus{border-color:var(--acc)}
+.fld-unit{font-family:'DM Mono',monospace;font-size:12px;color:var(--txt3);min-width:30px}
+.nt-box{background:var(--surf2);border:1px solid var(--brd);border-radius:var(--rs);padding:12px;display:flex;flex-direction:column;gap:8px}
+.nt-lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--txt3);letter-spacing:1px}
+.addm{border:2px dashed var(--brd);background:transparent;border-radius:var(--r);padding:16px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--txt2);font-family:'Syne',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
+.addm:active{border-color:var(--acc);color:var(--acc)}
+.mdel{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;background:#ff6b4722;border:1px solid #ff6b4744;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:20px}
+.tbtn{background:var(--surf);border:2px solid var(--brd);border-radius:var(--r);padding:20px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer}
+.tbtn:active{border-color:var(--acc);background:var(--surf2)}
+.tbtn .ti{font-size:32px}.tbtn .tn{font-size:14px;font-weight:700}
+.tbtn .tu{font-family:'DM Mono',monospace;font-size:11px;color:var(--txt2)}
+.rvsec{margin-bottom:20px}
+.rvsec h3{font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px}
+.rvm{background:var(--surf);border:1px solid var(--brd);border-radius:var(--rs);padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start}
+.rvt{width:52px;height:52px;border-radius:8px;flex-shrink:0;background:var(--surf2);display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden}
+.rvt img{width:100%;height:100%;object-fit:cover}
+.rvi .rn{font-size:13px;font-weight:700}
+.rvi .rr{font-family:'DM Mono',monospace;font-size:19px;color:var(--acc);margin:2px 0}
+.rvi .rr2{font-family:'DM Mono',monospace;font-size:14px;color:var(--acc2);margin-bottom:2px}
+.rvi .rm{font-size:11px;color:var(--txt2)}
+.rvi .ro{font-family:'DM Mono',monospace;font-size:10px;color:var(--txt3);margin-bottom:2px}
+.mp{background:var(--surf);border:1px solid var(--brd);border-radius:var(--rs);padding:14px}
+.mpf{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
+.mpk{color:var(--txt3);font-family:'DM Mono',monospace;font-size:10px;width:52px;flex-shrink:0;padding-top:3px}
+.mpv{color:var(--txt);font-size:13px;flex:1}
+.mpi{flex:1;background:transparent;border:none;color:var(--txt);font-family:'Syne',sans-serif;font-size:13px;outline:none;width:100%}
+.mpd{height:1px;background:var(--brd);margin:6px 0}
+.phc{background:var(--surf);border:1px solid var(--brd);border-radius:var(--rs);padding:12px;margin-bottom:8px;display:flex;gap:12px;align-items:center}
+.pht{width:60px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.phi{flex:1}.phi .pn{font-size:13px;font-weight:700}.phi .pm{font-size:11px;color:var(--txt2);margin-top:2px}
+.phb{display:flex;flex-direction:column;gap:6px}
+.bsm{padding:7px 12px;border-radius:8px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;cursor:pointer;border:none}
+.bsm-p{background:var(--acc);color:#000}
+.bsm-g{background:var(--surf2);color:var(--txt2);border:1px solid var(--brd)}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:1px solid var(--brd);padding:10px 0 24px;display:flex;z-index:100}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;color:var(--txt3);font-size:10px;font-weight:600;letter-spacing:.5px;transition:color .2s}
+.ni.on{color:var(--acc)}.ni .ico{font-size:22px;line-height:1}
+.mo{position:fixed;inset:0;background:#000a;z-index:200;display:flex;align-items:flex-end;opacity:0;transition:opacity .3s;pointer-events:none}
+.mo.open{opacity:1;pointer-events:all}
+.ms{background:var(--surf);border-radius:20px 20px 0 0;padding:20px;width:100%;transform:translateY(100%);transition:transform .35s cubic-bezier(.77,0,.18,1);max-height:92vh;overflow-y:auto}
+.mo.open .ms{transform:translateY(0)}
+.mh{width:40px;height:4px;background:var(--brd);border-radius:2px;margin:0 auto 20px}
+.mt{font-size:18px;font-weight:800;margin-bottom:4px}
+.msub{font-size:12px;color:var(--txt2);margin-bottom:16px;line-height:1.6}
+.zoom-modal-img{width:100%;border-radius:var(--rs);max-height:60vh;object-fit:contain;background:#000}
+.zoom-nav{display:flex;gap:8px;margin-top:10px}
+.zoom-nav button{flex:1;padding:12px;border-radius:var(--rs);background:var(--surf2);border:1px solid var(--brd);color:var(--txt);font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer}
+.zoom-nav button.pk{background:var(--acc);color:#000;border:none}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surf);border:1px solid var(--brd);border-radius:30px;padding:12px 20px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:var(--ok);color:var(--ok)}.toast.er{border-color:var(--acc3);color:var(--acc3)}
+.empty{text-align:center;padding:40px 20px;color:var(--txt3)}.empty .ei{font-size:48px;margin-bottom:12px}.empty p{font-size:14px;line-height:1.6}
+input[type="file"]{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fi-in{animation:fadeIn .3s ease forwards}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div class="screen" id="s-home">
+  <div class="hero">
+    <div class="kicker">ZÄHLER · ARCHIV</div>
+    <h1>Ablese<span>app</span></h1>
+    <p>Analog (HT/NT-Rollenzähler) und Digital (OBIS Smartmeter) – Foto + Eingabe + E-Mail.</p>
+    <div class="guide">
+      <div class="guide-tabs">
+        <div class="gtab on" id="gt-a" onclick="gtab('a')">⚙️ Analogzähler</div>
+        <div class="gtab" id="gt-d" onclick="gtab('d')">📟 Digitalzähler</div>
+      </div>
+      <div class="gpanel on" id="gp-a">
+        <div class="grow"><span class="gpill ht">HT oben</span><div class="gtxt"><strong>Zählerstand HT</strong> – oberes Rollenzählwerk, schwarze Ziffern · <span style="color:var(--acc3)">letzte Ziffer (rot umrandet) = Nachkommastelle mit Punkt trennen · Beispiel: 0121785 → 12178.5 kWh</span></div></div>
+        <div class="grow"><span class="gpill nt">NT unten</span><div class="gtxt"><strong>Zählerstand NT</strong> – unteres Rollenzählwerk · nur bei Doppeltarifzähler vorhanden</div></div>
+        <div class="grow"><span class="gpill nr">Zählernummer</span><div class="gtxt"><strong>Am Gehäuse aufgedruckt</strong> (z.B. <em>1 ITR00 5441 7895</em>) · auch auf der letzten Rechnung zu finden</div></div>
+        <div class="grow"><span class="gpill es">Gas</span><div class="gtxt"><strong>Gaszähler</strong> – meist im Keller, Sichtfenster mit Rollenzählwerk, zwei Rohre · roter Bereich weglassen · Einheit: m³</div></div>
+        <div class="grow"><span class="gpill nt">Wasser</span><div class="gtxt"><strong>Wasserzähler</strong> – am Hauptwasserhahn/Steigrohr im Keller oder Hauswirtschaftsraum · Zählernummer als <em>WZ.-Nr.</em> gekennzeichnet, meist oben am Zähler · Zählerstand in m³ (1 m³ = 1.000 L) · <span style="color:var(--acc3)">nur ganze m³ ablesen, Kommastellen &amp; Rädchen weglassen</span></div></div>
+        <div class="grow"><span class="gpill es">Garten</span><div class="gtxt"><strong>Gartenzähler</strong> – wie Wasserzähler ablesen · nur ganze m³ · separat melden → Abwassergebühren werden nicht berechnet</div></div>
+        <div class="grow" style="margin-bottom:0"><span class="gpill nr">💡 Tipp</span><div class="gtxt">Zähler schwer erreichbar? <strong>Foto mit Blitzlicht</strong> frontal aufnehmen – ggf. Selfie-Stick &amp; Selbstauslöser nutzen, dann bequem ablesen</div></div>
+      </div>
+      <div class="gpanel" id="gp-d">
+        <div class="grow"><span class="gpill ht">1.8.0</span><div class="gtxt"><strong>Bezug gesamt</strong> – Eintarifzähler, Gesamtverbrauch in kWh</div></div>
+        <div class="grow"><span class="gpill ht">1.8.1 / 1.8.2</span><div class="gtxt"><strong>Bezug HT / NT</strong> – Doppeltarifzähler · 1.8.2 beim Eintarifzähler = Gesamtverbrauch</div></div>
+        <div class="grow"><span class="gpill es">2.8.0–2</span><div class="gtxt"><strong>Einspeisung</strong> – nur bei Photovoltaik/Erzeugungsanlage</div></div>
+        <div class="grow"><span class="gpill nr">Zählernummer</span><div class="gtxt"><strong>Unter dem Strichcode</strong> am Gehäuse (z.B. <em>1 EMH00 11583155</em>) · <span style="color:var(--acc3)">Fabriknummer im Display ignorieren!</span> · auch auf letzter Rechnung</div></div>
+        <div class="grow" style="margin-bottom:0"><span class="gpill nr">💡 Tipp</span><div class="gtxt">Zähler schwer erreichbar? <strong>Foto mit Blitzlicht</strong> frontal aufnehmen – ggf. Selfie-Stick &amp; Selbstauslöser nutzen</div></div>
+      </div>
+    </div>
+    <div class="api-badge unset" id="api-badge" onclick="openApiModal()">
+      <span id="api-icon">🤖</span> <span id="api-txt">Automatische Erkennung (optional)</span>
+    </div>
+  </div>
+  <div class="scroll">
+    <div id="sess-card" style="display:none">
+      <div class="sc" id="sess-sum"></div>
+      <div class="acts">
+        <button class="btn btn-p" onclick="go('s-cap')">📷 Zähler erfassen</button>
+        <button class="btn btn-s" onclick="go('s-rev')">📋 Prüfen &amp; Senden</button>
+      </div>
+    </div>
+    <div id="no-sess">
+      <div class="acts" style="margin-top:0">
+        <button class="btn btn-p" onclick="go('s-loc')">🏠 Neue Ablesung starten</button>
+      </div>
+    </div>
+    <div style="margin-top:22px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--txt3);letter-spacing:1.5px;margin-bottom:12px">FRÜHERE ABLESUNGEN</div>
+      <div id="past-list"><div class="empty" style="padding:24px 10px"><div class="ei">🗂</div><p>Noch keine Ablesungen</p></div></div>
+    </div>
+  </div>
+  <div class="bnav">
+    <div class="ni on" onclick="go('s-home')"><div class="ico">🏠</div>START</div>
+    <div class="ni" onclick="go('s-loc')"><div class="ico">➕</div>NEU</div>
+    <div class="ni" onclick="go('s-rev')"><div class="ico">📋</div>SENDEN</div>
+  </div>
+</div>
+
+<!-- LOCATION -->
+<div class="screen hidden" id="s-loc">
+  <div class="hdr"><div class="hdr-back" onclick="go('s-home')">←</div><h1>Standort</h1><div class="hdr-tag">SCHRITT 1/3</div></div>
+  <div class="scroll">
+    <div class="fsec">
+      <label class="flbl">ADRESSE</label>
+      <div class="loc" onclick="detectLoc()">
+        <span style="font-size:20px">📍</span>
+        <span id="loc-txt">Standort automatisch erkennen</span>
+        <span id="loc-spin" style="display:none" class="spin"></span>
+      </div>
+      <input class="fi" id="a-str" placeholder="Straße &amp; Hausnummer" style="margin-bottom:8px">
+      <div class="frow"><input class="fi" id="a-plz" placeholder="PLZ"><input class="fi" id="a-city" placeholder="Stadt"></div>
+    </div>
+    <div class="fsec"><label class="flbl">OBJEKT / GEBÄUDE</label><input class="fi" id="a-bld" placeholder="z.B. Hauptgebäude, Hinterhaus"></div>
+    <div class="fsec"><label class="flbl">DATUM</label><input class="fi" type="date" id="a-date"></div>
+    <div class="fsec"><label class="flbl">ANMERKUNGEN</label><textarea class="fi" id="a-note" placeholder="Zusatzinformationen..."></textarea></div>
+    <button class="btn btn-p" onclick="saveLoc()">Weiter zur Zählererfassung →</button>
+  </div>
+</div>
+
+<!-- TYPE PICKER -->
+<div class="screen hidden" id="s-type">
+  <div class="hdr"><div class="hdr-back" onclick="go('s-cap')">←</div><h1>Zählerart</h1></div>
+  <div class="tgrid">
+    <div class="tbtn" onclick="addM('elec')"><div class="ti">⚡</div><div class="tn">Strom</div><div class="tu">kWh</div></div>
+    <div class="tbtn" onclick="addM('water')"><div class="ti">💧</div><div class="tn">Wasser</div><div class="tu">m³</div></div>
+    <div class="tbtn" onclick="addM('gas')"><div class="ti">🔥</div><div class="tn">Gas</div><div class="tu">m³</div></div>
+    <div class="tbtn" onclick="addM('heat')"><div class="ti">🌡️</div><div class="tn">Wärme</div><div class="tu">MWh</div></div>
+    <div class="tbtn" onclick="addM('warmwater')"><div class="ti">🚿</div><div class="tn">Warmwasser</div><div class="tu">m³</div></div>
+    <div class="tbtn" onclick="addM('garden')"><div class="ti">🌿</div><div class="tn">Gartenzähler</div><div class="tu">m³</div></div>
+    <div class="tbtn" onclick="addM('other')"><div class="ti">📟</div><div class="tn">Sonstiger</div><div class="tu">–</div></div>
+  </div>
+</div>
+
+<!-- CAPTURE -->
+<div class="screen hidden" id="s-cap">
+  <div class="hdr"><div class="hdr-back" onclick="go('s-home')">←</div><h1>Zähler erfassen</h1><div class="hdr-tag">SCHRITT 2/3</div></div>
+  <div class="scroll">
+    <div id="mlist" class="mlist"></div>
+    <div style="margin-top:12px"><button class="addm" onclick="go('s-type')">+ Zähler hinzufügen</button></div>
+    <div style="margin-top:14px"><button class="btn btn-p" id="btn-rev" style="display:none" onclick="go('s-rev')">Weiter zur Überprüfung →</button></div>
+  </div>
+</div>
+
+<!-- REVIEW -->
+<div class="screen hidden" id="s-rev">
+  <div class="hdr"><div class="hdr-back" onclick="go('s-cap')">←</div><h1>Prüfen &amp; Senden</h1><div class="hdr-tag">SCHRITT 3/3</div></div>
+  <div class="scroll">
+    <div class="rvsec"><h3>Objekt</h3><div class="mp" id="rv-addr"></div></div>
+    <div class="rvsec"><h3>Erfasste Zähler</h3><div id="rv-meters"></div></div>
+    <div class="rvsec" id="rv-photos" style="display:none"><h3>📷 Fotos</h3><div id="rv-pgrid"></div></div>
+    <div class="rvsec"><h3>E-Mail</h3>
+      <div class="mp">
+        <div class="mpf"><div class="mpk">AN</div><input class="mpi" id="m-to" placeholder="hausverwaltung@beispiel.de" type="email"></div>
+        <div class="mpd"></div>
+        <div class="mpf"><div class="mpk">CC</div><input class="mpi" id="m-cc" placeholder="meine@email.de (optional)" type="email"></div>
+        <div class="mpd"></div>
+        <div class="mpf"><div class="mpk">BETREFF</div><input class="mpi" id="m-sub"></div>
+      </div>
+    </div>
+    <button class="btn btn-p" onclick="sendMail()" style="margin-bottom:10px" id="btn-send">📧 E-Mail mit Fotos erstellen</button>
+    <button class="btn btn-s" onclick="saveSession()">💾 Lokal archivieren</button>
+  </div>
+</div>
+
+<!-- MODAL: Meter detail -->
+<div class="mo" id="mo-meter">
+  <div class="ms">
+    <div class="mh"></div>
+    <div class="mt" id="mo-title">Zählerdetails</div>
+    <div class="msub">Foto aufnehmen → Wert ablesen und eingeben. Das Foto dient als Dokumentationsnachweis.</div>
+    <div class="fsec"><label class="flbl">BEZEICHNUNG</label><input class="fi" id="mo-name" placeholder="z.B. Wohnung 3, Keller, Außen"></div>
+    <div class="fsec"><label class="flbl">ZÄHLERNUMMER (Gehäuse, optional)</label><input class="fi" id="mo-ser" placeholder="z.B. 1 ITR00 5441 7895"></div>
+    <div class="fsec"><label class="flbl">STOCKWERK / ORT</label><input class="fi" id="mo-floor" placeholder="z.B. UG, EG, 1.OG"></div>
+    <button class="btn btn-p" onclick="confirmM()">Zähler anlegen ✓</button>
+  </div>
+</div>
+
+<!-- MODAL: API Key -->
+<div class="mo" id="mo-api">
+  <div class="ms">
+    <div class="mh"></div>
+    <div class="mt">🤖 Automatische Zählererkennung</div>
+    <div class="msub">
+      Mit einem Anthropic API-Key erkennt Claude Zählerstand, Zählernummer und OBIS-Code automatisch aus dem Foto.<br><br>
+      <strong style="color:var(--acc)">Key holen:</strong> <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--acc2)">console.anthropic.com → API Keys → Create Key</a><br><br>
+      <span style="color:var(--txt3)">Key wird nur lokal gespeichert und nie übertragen.</span>
+    </div>
+    <div class="fsec"><label class="flbl">API KEY</label>
+      <input class="fi" id="api-key-input" type="password" placeholder="sk-ant-api03-…" style="font-family:'DM Mono',monospace;font-size:13px">
+    </div>
+    <button class="btn btn-p" onclick="saveApiKey()" style="margin-bottom:8px">Speichern ✓</button>
+    <button class="btn btn-s" onclick="closeModal('mo-api')">Ohne KI fortfahren</button>
+  </div>
+</div>
+
+<!-- MODAL: Zoom viewer -->
+<div class="mo" id="mo-zoom">
+  <div class="ms">
+    <div class="mh"></div>
+    <div class="mt">📷 Zähler-Foto</div>
+    <div class="msub" id="zoom-sub">Lies den Wert ab und trage ihn unten ein.</div>
+    <img class="zoom-modal-img" id="zoom-img" src="" alt="">
+    <div class="zoom-nav">
+      <button onclick="closeModal('mo-zoom')">Schließen</button>
+      <button class="pk" onclick="closeZoomAndFocus()">Wert eingeben ✏️</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="file-in" accept="image/*" capture="environment">
+
+<script>
+const OBIS={
+  '1.8.0':{l:'Bezug gesamt',h:'Eintarifzähler – Gesamtverbrauch'},
+  '1.8.1':{l:'Bezug HT',h:'Doppeltarif – Hochtarif'},
+  '1.8.2':{l:'Bezug NT/Gesamt',h:'Eintarifzähler: Gesamt · Doppeltarif: Niedertarif'},
+  '2.8.0':{l:'Einspeisung ges.',h:'Photovoltaik'},
+  '2.8.1':{l:'Einspeisung HT',h:'Doppeltarif'},
+  '2.8.2':{l:'Einspeisung NT',h:'Doppeltarif'},
+};
+function obisL(c){if(!c)return null;for(const[k,v]of Object.entries(OBIS))if(c.includes(k))return{code:k,...v};return null;}
+
+let sess=null,sessions=JSON.parse(localStorage.getItem('zs')||'[]');
+let pType=null,photoIdx=null,zoomFocusId=null;
+let apiKey=localStorage.getItem('z-apikey')||'';
+
+const CFG={
+  elec:    {icon:'⚡',name:'Stromzähler',    unit:'kWh',cls:'elec'},
+  water:   {icon:'💧',name:'Wasserzähler',    unit:'m³', cls:'water'},
+  gas:     {icon:'🔥',name:'Gaszähler',       unit:'m³', cls:'gas'},
+  heat:    {icon:'🌡️',name:'Wärmezähler',    unit:'MWh',cls:'heat'},
+  warmwater:{icon:'🚿',name:'Warmwasserzähler',unit:'m³',cls:'water'},
+  garden:  {icon:'🌿',name:'Gartenzähler',    unit:'m³', cls:'water'},
+  other:   {icon:'📟',name:'Sonstiger Zähler',unit:'',  cls:'elec'},
+};
+
+function gtab(t){
+  ['a','d'].forEach(x=>{
+    document.getElementById('gt-'+x).classList.toggle('on',x===t);
+    document.getElementById('gp-'+x).classList.toggle('on',x===t);
+  });
+}
+
+function openApiModal(){document.getElementById('api-key-input').value=apiKey;openModal('mo-api');}
+function saveApiKey(){
+  const v=document.getElementById('api-key-input').value.trim();
+  if(v&&!v.startsWith('sk-ant-')){toast('Ungültiger Key – muss mit sk-ant- beginnen','er');return;}
+  apiKey=v;
+  if(v)localStorage.setItem('z-apikey',v);else localStorage.removeItem('z-apikey');
+  updateApiBadge();closeModal('mo-api');
+  toast(v?'Claude Vision aktiv ✓':'Key entfernt','ok');
+}
+function updateApiBadge(){
+  const b=document.getElementById('api-badge');
+  if(apiKey){b.className='api-badge set';document.getElementById('api-icon').textContent='✦';document.getElementById('api-txt').textContent='Claude Vision aktiv';}
+  else{b.className='api-badge unset';document.getElementById('api-icon').textContent='🤖';document.getElementById('api-txt').textContent='Automatische Erkennung (optional)';}
+}
+
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if(id==='s-home')buildHome();
+  if(id==='s-cap')buildMList();
+  if(id==='s-rev')buildReview();
+}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+function buildHome(){
+  const c=document.getElementById('sess-card'),n=document.getElementById('no-sess');
+  if(sess){
+    c.style.display='block';n.style.display='none';
+    document.getElementById('sess-sum').innerHTML=`
+      <div class="sc-lbl">AKTIVE SITZUNG</div>
+      <div class="sc-addr">${sess.str||'–'}, ${sess.plz||''} ${sess.city||''}</div>
+      <div class="sc-meta">${sess.bld||''} · ${sess.date||''}</div>
+      <div class="sc-cnt">📊 ${(sess.meters||[]).length} Zähler</div>`;
+  }else{c.style.display='none';n.style.display='block';}
+  const list=document.getElementById('past-list');
+  if(!sessions.length){list.innerHTML='<div class="empty" style="padding:24px 10px"><div class="ei">🗂</div><p>Noch keine Ablesungen</p></div>';return;}
+  list.innerHTML=sessions.slice().reverse().map((s,i)=>{
+    const idx=sessions.length-1-i;
+    return `<div class="pi" onclick="loadSess(${idx})">
+      <div class="pi-row"><div class="pi-addr">${s.str||'–'}</div><div class="pi-b">${(s.meters||[]).length} Zähler</div></div>
+      <div class="pi-meta">${s.plz||''} ${s.city||''} · ${s.date||''}</div>
+    </div>`;
+  }).join('');
+}
+function loadSess(idx){sess=JSON.parse(JSON.stringify(sessions[idx]));go('s-home');toast('Sitzung geladen ✓','ok');}
+
+function detectLoc(){
+  const t=document.getElementById('loc-txt'),sp=document.getElementById('loc-spin');
+  t.textContent='Ermittle...';sp.style.display='block';
+  if(!navigator.geolocation){t.textContent='Nicht verfügbar';sp.style.display='none';return;}
+  navigator.geolocation.getCurrentPosition(async p=>{
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${p.coords.latitude}&lon=${p.coords.longitude}&format=json&accept-language=de`);
+      const d=await r.json();const a=d.address;
+      document.getElementById('a-str').value=(a.road||'')+(a.house_number?' '+a.house_number:'');
+      document.getElementById('a-plz').value=a.postcode||'';
+      document.getElementById('a-city').value=a.city||a.town||a.village||'';
+      t.textContent='📍 Standort erkannt';toast('Standort erkannt ✓','ok');
+    }catch{t.textContent='Fehler';}
+    sp.style.display='none';
+  },()=>{t.textContent='Zugriff verweigert';sp.style.display='none';});
+}
+function saveLoc(){
+  const str=document.getElementById('a-str').value.trim();
+  if(!str){toast('Bitte Adresse eingeben','er');return;}
+  sess={str,plz:document.getElementById('a-plz').value.trim(),
+    city:document.getElementById('a-city').value.trim(),
+    bld:document.getElementById('a-bld').value.trim(),
+    date:document.getElementById('a-date').value||new Date().toLocaleDateString('de-DE'),
+    note:document.getElementById('a-note').value.trim(),
+    meters:[],created:Date.now()};
+  go('s-cap');
+}
+
+function addM(type){
+  pType=type;const cfg=CFG[type];
+  document.getElementById('mo-title').textContent=cfg.icon+' '+cfg.name;
+  ['mo-name','mo-ser','mo-floor'].forEach(id=>document.getElementById(id).value='');
+  openModal('mo-meter');
+}
+function confirmM(){
+  if(!sess)return;
+  sess.meters.push({id:Date.now(),type:pType,mv:'auto',
+    name:document.getElementById('mo-name').value.trim(),
+    serial:document.getElementById('mo-ser').value.trim(),
+    floor:document.getElementById('mo-floor').value.trim(),
+    reading:'',readingNT:'',obisCode:'',photoData:null,aiState:null,aiText:''});
+  closeModal('mo-meter');go('s-cap');
+}
+['mo-meter','mo-api','mo-zoom'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target===document.getElementById(id))closeModal(id);});
+});
+
+function setMV(i,v){if(sess)sess.meters[i].mv=v;buildMList();}
+function upF(i,k,v){if(sess)sess.meters[i][k]=v;}
+function delM(i){if(sess)sess.meters.splice(i,1);buildMList();}
+
+function buildMList(){
+  if(!sess)return;
+  const ms=sess.meters||[];
+  document.getElementById('btn-rev').style.display=ms.length?'flex':'none';
+  const el=document.getElementById('mlist');
+  if(!ms.length){el.innerHTML='<div class="empty"><div class="ei">📟</div><p>Noch keine Zähler.</p></div>';return;}
+  el.innerHTML=ms.map((m,i)=>{
+    const cfg=CFG[m.type]||CFG.other;
+    const isA = m.mv==='analog' || (m.mv==='auto' && !!(m.readingNT));
+    const hasNT = !!(m.readingNT);
+    let aiRow='';
+    if(m.aiState==='wait'){
+      aiRow=`<div class="ai-row wait"><div class="ai-dot"></div>Claude analysiert Foto…</div>`;
+    }else if(m.aiState==='ok'){
+      aiRow=`<div class="ai-row ok">✨ ${m.aiText} <button class="ai-retry" onclick="runAI(${i})">↺ Erneut</button></div>`;
+    }else if(m.aiState==='err'){
+      aiRow=`<div class="ai-row err">⚠ ${m.aiText} <button class="ai-retry" onclick="runAI(${i})">↺ Erneut</button></div>`;
+    }else if(m.photoData&&apiKey){
+      aiRow=`<div class="ai-row info">🤖 Foto aufgenommen – <button class="ai-retry" onclick="runAI(${i})" style="margin-left:0">Claude fragen →</button></div>`;
+    }else if(m.photoData&&!apiKey){
+      aiRow=`<div class="ai-row info" style="cursor:pointer" onclick="openApiModal()">🤖 Automatische Erkennung aktivieren (optional – Claude Vision)</div>`;
+    }
+    return `<div class="mc fi-in" id="mc-${m.id}">
+      <div class="mch">
+        <div class="mi ${cfg.cls}">${cfg.icon}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">${cfg.name}${m.name?' · '+m.name:''}</div>
+          <div style="font-size:11px;color:var(--txt2)">${m.floor?m.floor+' · ':''}${m.serial?'Nr. '+m.serial:'Keine Nr.'}</div>
+        </div>
+        <div class="mdel" onclick="delM(${i})">✕</div>
+      </div>
+      <div class="mcb">
+        <div class="mtype">
+          <div class="mtype-btn ${m.mv==='auto'?'on':''}" onclick="setMV(${i},'auto')">Auto</div>
+          <div class="mtype-btn ${m.mv==='analog'?'on':''}" onclick="setMV(${i},'analog')">⚙️ Analog</div>
+          <div class="mtype-btn ${m.mv==='digital'?'on':''}" onclick="setMV(${i},'digital')">📟 Digital</div>
+        </div>
+        <div class="pharea" onclick="triggerPhoto(${i})">
+          ${m.photoData?`<img src="${m.photoData}" alt="">`:''}
+          ${!m.photoData?`<div class="ph-hint"><div class="ico">📷</div>
+            <span style="font-weight:700;font-size:13px">Foto aufnehmen</span>
+            <small>${isA?'Beide Rollenzählwerke + blaues Nummernschild sichtbar':'Display mit OBIS + kWh · Strichcode mit Zählernummer'}<br>Gute Beleuchtung · Nah heranzoomen</small>
+          </div>`:''}
+          ${m.photoData&&m.reading?`<div style="position:absolute;inset:0;background:linear-gradient(to top,#000e 40%,transparent);z-index:2;display:flex;flex-direction:column;justify-content:flex-end;padding:12px;gap:2px">
+            <div style="font-family:'DM Mono',monospace;font-size:22px;color:var(--acc);text-shadow:0 2px 8px #000c">${isA?'HT: ':''}${m.reading} ${cfg.unit}</div>
+            ${m.readingNT?`<div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--acc2)">NT: ${m.readingNT} ${cfg.unit}</div>`:''}
+            ${m.serial?`<div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--acc2)">Nr. ${m.serial}</div>`:''}
+          </div>`:''}
+        </div>
+        ${m.photoData?`<button class="btn btn-s" style="padding:10px" onclick="openZoom(${i})">🔍 Foto vergrößern &amp; ablesen</button>`:''}
+        ${aiRow}
+        <div class="fld">
+          <span class="fld-lbl">${isA||hasNT?'HT-STAND':'STAND'}</span>
+          <input class="fld-in" id="fi-${m.id}" type="number" placeholder="${cfg.unit==='kWh'?'000000.0':'000000'}" step="0.001"
+            value="${m.reading}" oninput="upF(${i},'reading',this.value)">
+          <span class="fld-unit">${cfg.unit}</span>
+        </div>
+        ${(isA||hasNT)?`<div class="nt-box">
+          <div class="nt-lbl">NT – NIEDERTARIF (nur Doppeltarifzähler)</div>
+          <div class="fld">
+            <span class="fld-lbl">NT-STAND</span>
+            <input class="fld-in nt" type="number" placeholder="000000.0" step="0.001"
+              value="${m.readingNT||''}" oninput="upF(${i},'readingNT',this.value)">
+            <span class="fld-unit">${cfg.unit}</span>
+          </div>
+        </div>`:''}
+        ${isA&&!hasNT?`<button class="btn btn-s" style="padding:8px;font-size:12px" onclick="upF(${i},'readingNT',' ');buildMList()">+ NT-Feld einblenden</button>`:''}
+        <div class="fld">
+          <span class="fld-lbl">ZÄHLER-NR.</span>
+          <input class="fld-in ser" type="text" placeholder="${isA?'1 ITR00 XXXX XXXX':'1 EMH00 XXXXXXXX'}"
+            value="${m.serial}" oninput="upF(${i},'serial',this.value)">
+        </div>
+        ${!isA?`<div class="fld">
+          <span class="fld-lbl">OBIS</span>
+          <input class="fld-in obi" type="text" placeholder="1.8.0 / 1.8.2 / 2.8.0"
+            value="${m.obisCode||''}" oninput="upF(${i},'obisCode',this.value)">
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function triggerPhoto(i){photoIdx=i;document.getElementById('file-in').click();}
+document.getElementById('file-in').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file||photoIdx===null)return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    const idx=photoIdx;
+    sess.meters[idx].photoData=ev.target.result;
+    sess.meters[idx].aiState=null;sess.meters[idx].aiText='';
+    buildMList();
+    if(apiKey)await runAI(idx);
+  };
+  reader.readAsDataURL(file);this.value='';
+});
+
+function openZoom(i){
+  const m=sess.meters[i];if(!m||!m.photoData)return;
+  const isA=m.mv==='analog';
+  document.getElementById('zoom-img').src=m.photoData;
+  document.getElementById('zoom-sub').textContent=isA
+    ?'Lies ALLE Ziffern ab – die letzte (rot/markiert) ist die Nachkommastelle. Beispiel: 0121785 → Stand 12178.5 kWh'
+    :'OBIS-Code merken (1.8.0 / 1.8.2 / 2.8.0) · Zahl vor "kWh" = Zählerstand · Zählernummer unter Strichcode.';
+  zoomFocusId=m.id;openModal('mo-zoom');
+}
+function closeZoomAndFocus(){
+  closeModal('mo-zoom');
+  setTimeout(()=>{const el=document.getElementById('fi-'+zoomFocusId);if(el){el.focus();el.select();}},350);
+}
+
+async function runAI(idx){
+  if(!apiKey||!sess?.meters[idx]?.photoData){if(!apiKey)openApiModal();return;}
+  const m=sess.meters[idx];
+  m.aiState='wait';m.aiText='';buildMList();
+  try{
+    const compressed=await compressImg(m.photoData,1200,0.85);
+    const base64=compressed.split(',')[1];
+    // In Auto-mode: use analog prompt for electricity meters (most common case)
+    // Digital mode must be explicitly selected
+    // Auto-mode always uses analog/mechanical prompt – digital must be explicitly selected
+    const isA = m.mv==='analog' || m.mv==='auto';
+    const mtype=m.type;
+    let prompt;
+    if(isA){
+      if(mtype==='water'||mtype==='garden'){
+        prompt=`Du analysierst ein Foto eines Wasser- oder Warmwasserzählers mit Rollenzählwerk.
+
+ZÄHLERSTAND ABLESEN – NUR GANZE m³:
+Das Rollenzählwerk hat ZWEI klar getrennte Bereiche:
+• SCHWARZE/DUNKLE Ziffern (links) = ganze Kubikmeter m³ → diese ablesen
+• ROTE/ORANGE Ziffern (rechts) = Nachkommastellen (Liter) → komplett ignorieren
+• Die Trennlinie ist meist ein weißes oder gelbes KOMMA-Symbol zwischen den Bereichen
+
+RECHENBEISPIELE:
+  Zählwerk: 0 0 0 1 0 | 0 2 4  → NUR "10" (die roten 024 ignorieren)
+  Zählwerk: 0 0 5 2 1 8 | 6 3  → NUR "5218" (die roten 63 ignorieren)
+  Zählwerk: 0 0 0 0 0 3 | 4 1  → NUR "3"
+
+ZÄHLERNUMMER:
+• Oft als "WZ.-Nr." oder direkt als Zahl aufgedruckt, meist im oberen Bereich des Zählers
+• Oder auf einem Schild/Aufkleber am Gehäuse
+• Beispiel: "12.154040" oder "64038637"
+
+Antworte NUR in diesem JSON, ohne Erklärung:
+{"ht":"10","nt":"?","serial":"12.154040"}
+Fehlende Werte als "?".
+Zählerstand IMMER als ganze Zahl ohne Komma/Punkt (z.B. "10" nicht "10.024").`;
+      }else if(mtype==='gas'){
+        prompt=`Du analysierst ein Foto eines Gaszählers mit Rollenzählwerk (Sichtfenster).
+WICHTIG – Zählerstand korrekt ablesen:
+- Lies ALLE Ziffern vollständig ab
+- Die letzte Ziffer (oft rot umrandet oder nach einem Komma/Markierung) ist die Nachkommastelle
+- Trenne mit Punkt: z.B. 123456 → "12345.6"
+- Zählernummer – aufgedruckt am Gehäuse
+Antworte NUR in diesem JSON, ohne Erklärung:
+{"ht":"12345.6","nt":"?","serial":"G4-12345678"}
+Fehlende Werte als "?".`;
+      }else{
+        prompt=`Du analysierst ein Foto eines ANALOGEN Stromzählers (Ferraris-/Rollenzählwerk). In Deutschland gibt es viele verschiedene Typen – deine Aufgabe ist es, ALLE korrekt zu erkennen.
+
+═══ SCHRITT 1: ZÄHLERTYP ERKENNEN ═══
+Bestimme zunächst welcher Typ vorliegt:
+
+A) EINTARIFZÄHLER (1 Zählwerk)
+   → Nur ein schwarzes Rollenzählwerk mit weißen Ziffern
+   → Beschriftung: kWh, manchmal "1.8.0" oder gar keine Tarifangabe
+   → Nur HT-Stand, kein NT
+
+B) ZWEITARIFZÄHLER / DOPPELTARIFZÄHLER (2 Zählwerke)
+   → OBERES Zählwerk = HT (Hochtarif/Tagstrom) – beschriftet mit "HT", "T1", "1.8.1" oder steht einfach OBEN
+   → UNTERES Zählwerk = NT (Niedertarif/Nachtstrom) – beschriftet mit "NT", "T2", "1.8.2" oder steht UNTEN
+   → Typisch bei Nachtspeicher-Heizungen
+
+C) WECHSELSTROMZÄHLER (Einphasig, kompakt)
+   → Ein Zählwerk, schmaler Aufbau, häufig in Zwischenzähler-Funktion
+
+═══ SCHRITT 2: ZÄHLERSTAND ABLESEN ═══
+ROLLENZÄHLWERK-REGELN (gelten für ALLE Typen):
+• Ziffern stehen auf schwarzen Rollen, meist weiß oder hell auf dunklem Hintergrund
+• Lies jede Ziffer einzeln von LINKS nach RECHTS – KEINE Ziffer überspringen!
+• Gesamtzahl der Ziffern: meist 6 oder 7, selten 5 oder 8
+• Die LETZTE Ziffer rechts = Nachkommastelle, erkennbar an:
+  - rotem oder rosafarbenem Hintergrund der letzten Rolle
+  - roter Zifferfarbe der letzten Stelle
+  - physischer Trennlinie/Strich zwischen vorletzter und letzter Stelle
+  - manchmal auch nur durch Komma-Symbol angedeutet
+• TRENNE die letzte Ziffer mit einem Punkt ab
+• Führende Nullen weglassen (aber ALLE anderen Ziffern behalten!)
+
+RECHENBEISPIELE:
+  Zählwerk zeigt:  0 3 7 3 4 2 [7]  →  "37342.7"
+  Zählwerk zeigt:  0 6 8 4 8 7 [1]  →  "68487.1"
+  Zählwerk zeigt:  0 1 2 1 7 8 [5]  →  "12178.5"
+  Zählwerk zeigt:  0 0 0 0 1 5 [3]  →  "15.3"
+  Zählwerk zeigt:  1 2 3 4 5 [6]    →  "12345.6"
+  (eckige Klammer = rote/markierte Nachkommastelle)
+
+ACHTUNG bei ähnlichen Ziffern:
+  • 0 und 6 können auf alten Rollenzählern ähnlich aussehen → Kontext nutzen
+  • Ziffer die gerade "kippt" (zwischen zwei Zahlen) → die untere Zahl nehmen
+  • Rote Ziffern IMMER als Nachkommastelle werten, auch wenn keine Markierung sichtbar
+
+═══ SCHRITT 3: ZÄHLERNUMMER FINDEN ═══
+Die Zählernummer kann an vielen Stellen stehen – prüfe ALLE:
+
+• In einem ROTEN RAHMEN direkt auf dem Zählergehäuse → z.B. "Nr.10.397.060"
+• Auf einem BLAUEN oder TÜRKISEN Schild unten am Gehäuse → z.B. Aufkleber mit Adresse des Netzbetreibers, darunter die Nummer
+• Auf einem GELBEN Schild seitlich → oft "EA 1 99" o.ä. – das ist KEINE Zählernummer
+• Auf einem WEISSEN/GRÜNEN/GRAUEN Schild am Gehäuse → z.B. "1 ITR00 5441 7895"
+• UNTER einem STRICHCODE → bei modernen Analogzählern, z.B. "1 EMH00 11583155"
+• Direkt auf dem Gehäuse aufgedruckt/eingraviert → z.B. "Nr. 31 048 123"
+
+NICHT verwechseln mit:
+  ✗ Typbezeichnung (z.B. "DV616UT", "E72F-01", "ISKRA ME162")
+  ✗ Fertigungsjahr (z.B. "1999", "2001")
+  ✗ Technische Angaben (z.B. "3x230/400V", "10(60)A", "50Hz", "96 U/kWh")
+  ✗ Eichzeichen/Zulassungsnummern
+
+Analoge Zählernummern: meist 8–12 Ziffern, manchmal mit "Nr." davor
+Moderne/neuere Analoge: bis 14 Stellen, alphanumerisch möglich
+
+═══ AUSGABE ═══
+Antworte NUR in diesem JSON-Format, ohne Erklärung, ohne Markdown:
+{"ht":"37342.7","nt":"68487.1","serial":"Nr.10.397.060"}
+
+Regeln:
+- "ht" = Zählerstand HT (oder einziger Stand bei Eintarifzähler)
+- "nt" = Zählerstand NT, oder "?" wenn kein NT-Zählwerk vorhanden
+- "serial" = Zählernummer, oder "?" wenn nicht erkennbar
+- Alle Zählerstände mit Nachkommastelle und Punkt (z.B. "37342.7")
+- Keine Einheit (kein "kWh") im JSON`;
+      }
+    }else{
+      prompt=`Du analysierst ein Foto eines digitalen Zählers.
+Erkenne:
+1. Zählerstand = Zahl direkt vor der Einheit (kWh/m³) im Display
+2. OBIS-Code = z.B. 1.8.0, 1.8.2, 2.8.0 (im Display; NICHT Fabriknummer)
+3. Zählernummer = Text unter dem Strichcode am Gehäuse (NICHT Fabriknummer im Display) – bei Wasserzähler als "WZ.-Nr." oben, blau umrandet
+Antworte NUR in diesem JSON, ohne Erklärung:
+{"reading":"000000.0","obis":"1.8.0","serial":"1 EMH00 11583155"}
+Fehlende Werte als "?".`;
+    }
+    if(!base64||base64.length<100){m.aiState='err';m.aiText='Bild konnte nicht verarbeitet werden';buildMList();return;}
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+        {type:'text',text:prompt}
+      ]}]})
+    });
+    if(!res.ok){
+      const eb=await res.json().catch(()=>({}));
+      const em=(eb?.error?.message||eb?.error?.type||JSON.stringify(eb)).substring(0,100);
+      if(res.status===401){toast('API-Key ungültig','er');openApiModal();}
+      else toast(res.status+': '+em,'er');
+      m.aiState='err';m.aiText=res.status+': '+em;buildMList();return;
+    }
+    const data=await res.json();
+    let txt=data.content?.[0]?.text?.trim()||'{}';
+    const jm=txt.match(/\{[\s\S]*\}/);if(jm)txt=jm[0];
+    const r=JSON.parse(txt);
+    const parts=[];
+
+    // Auto-detect: if response contains ht/nt fields → it's analog
+    // regardless of current mv setting
+    const hasHTResponse = r.ht && r.ht !== '?';
+    const hasNTResponse = r.nt && r.nt !== '?';
+    const hasReadingResponse = r.reading && r.reading !== '?';
+
+    if(isA || hasHTResponse){
+      // ANALOG path – handles both forced analog AND auto-detected analog
+      if(hasHTResponse){
+        m.reading = r.ht;
+        parts.push(`HT: ${r.ht}`);
+        // Auto-switch mode to analog so NT field appears
+        if(m.mv==='auto') m.mv='analog';
+      }
+      if(hasNTResponse){
+        m.readingNT = r.nt;
+        parts.push(`NT: ${r.nt}`);
+      }
+    } else {
+      // DIGITAL path
+      if(hasReadingResponse){if(!m.reading)m.reading=r.reading;parts.push(`Stand: ${r.reading}`);}
+      if(r.obis&&r.obis!=='?'){if(!m.obisCode)m.obisCode=r.obis;parts.push(`OBIS: ${r.obis}`);}
+    }
+    if(r.serial&&r.serial!=='?'){if(!m.serial)m.serial=r.serial;parts.push(`Nr.: ${r.serial}`);}
+    m.aiState=parts.length?'ok':'err';
+    m.aiText=parts.length?parts.join(' · '):'Nichts erkannt – bitte manuell eingeben';
+  }catch(e){
+    console.error(e);m.aiState='err';m.aiText='Verbindungsfehler';
+  }
+  buildMList();
+}
+
+function compressImg(dataUrl,maxW=1200,q=0.82){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg',q));
+    };
+    img.src=dataUrl;
+  });
+}
+
+function buildReview(){
+  if(!sess){document.getElementById('rv-addr').innerHTML='<p style="color:var(--txt3);font-size:13px">Keine Sitzung.</p>';document.getElementById('rv-meters').innerHTML='';return;}
+  const s=sess;
+  document.getElementById('rv-addr').innerHTML=`
+    <div class="mpf"><div class="mpk">ORT</div><div class="mpv">${s.str}, ${s.plz} ${s.city}</div></div>
+    ${s.bld?`<div class="mpf"><div class="mpk">GEB.</div><div class="mpv">${s.bld}</div></div>`:''}
+    <div class="mpf"><div class="mpk">DATUM</div><div class="mpv">${s.date}</div></div>
+    ${s.note?`<div class="mpf"><div class="mpk">INFO</div><div class="mpv">${s.note}</div></div>`:''}`;
+  const ms=s.meters||[];
+  document.getElementById('rv-meters').innerHTML=!ms.length?'<p style="color:var(--txt3);font-size:13px">Noch keine Zähler.</p>':ms.map(m=>{
+    const cfg=CFG[m.type]||CFG.other;
+    const oi=obisL(m.obisCode);
+    const isA=m.mv==='analog';
+    return `<div class="rvm">
+      <div class="rvt">${m.photoData?`<img src="${m.photoData}">`:`<span>${cfg.icon}</span>`}</div>
+      <div class="rvi" style="flex:1">
+        <div class="rn">${cfg.name}${m.name?' · '+m.name:''}</div>
+        ${oi?`<div class="ro">OBIS ${oi.code} – ${oi.l}</div>`:''}
+        <div class="rr">${isA?'HT: ':''}${m.reading||'–'} ${cfg.unit}</div>
+        ${m.readingNT?`<div class="rr2">NT: ${m.readingNT} ${cfg.unit}</div>`:''}
+        <div class="rm">${m.serial?'Nr. '+m.serial+' ':''}${m.floor?'· '+m.floor:''}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const photos=ms.filter(m=>m.photoData);
+  const ps=document.getElementById('rv-photos'),pg=document.getElementById('rv-pgrid');
+  if(photos.length){
+    ps.style.display='block';
+    const canShare=!!navigator.share&&!!navigator.canShare;
+    const allBtn=canShare&&photos.length>1?`<button class="btn btn-ex" onclick="shareAll()" style="margin-bottom:10px">📤 Alle ${photos.length} Fotos teilen</button>`:'';
+    pg.innerHTML=allBtn+photos.map((m,i)=>{
+      const cfg=CFG[m.type]||CFG.other;
+      const fname=`zaehler_${m.type}_${(m.serial||i+1).toString().replace(/\s/g,'_')}_${(s.date||'').replace(/\./g,'-')}.jpg`;
+      const mIdx=ms.indexOf(m);
+      const shareBtn=canShare?`<button class="bsm bsm-p" onclick="shareOne(${mIdx})">📤</button>`:'';
+      return `<div class="phc">
+        <img class="pht" src="${m.photoData}">
+        <div class="phi"><div class="pn">${cfg.icon} ${m.name||cfg.name}</div><div class="pm">${m.reading?m.reading+' '+cfg.unit:'–'} · ${m.serial||'Keine Nr.'}</div></div>
+        <div class="phb">${shareBtn}<a href="${m.photoData}" download="${fname}"><button class="bsm bsm-g">⬇</button></a></div>
+      </div>`;
+    }).join('');
+  }else{ps.style.display='none';}
+  document.getElementById('m-sub').value=`Ablesebericht – ${s.str}, ${s.plz} ${s.city} (${s.date})`;
+}
+
+function buildMailBody(){
+  const s=sess;const ms=s.meters||[];
+  let b=`ABLESEBERICHT\n══════════════════════════════\n`;
+  b+=`Objekt:  ${s.str}, ${s.plz} ${s.city}\n`;
+  if(s.bld)b+=`Gebäude: ${s.bld}\n`;
+  b+=`Datum:   ${s.date}\n`;
+  if(s.note)b+=`Hinweis: ${s.note}\n`;
+  b+=`\nZÄHLERSTÄNDE\n──────────────────────────────\n`;
+  ms.forEach((m,i)=>{
+    const cfg=CFG[m.type]||CFG.other;
+    const oi=obisL(m.obisCode);
+    const isA=m.mv==='analog';
+    b+=`\n${i+1}. ${cfg.name}${m.name?' ('+m.name+')':''}\n`;
+    if(oi)b+=`   OBIS-Code:    ${oi.code}  (${oi.l} – ${oi.h})\n`;
+    if(m.serial)b+=`   Zähler-Nr.:  ${m.serial}\n`;
+    if(m.floor)b+=`   Stockwerk:   ${m.floor}\n`;
+    if(m.readingNT){
+      b+=`   Zählerstand HT: ${m.reading||'–'} ${cfg.unit}\n`;
+      b+=`   Zählerstand NT: ${m.readingNT} ${cfg.unit}\n`;
+    }else{
+      b+=`   Zählerstand: ${m.reading||'–'} ${cfg.unit}\n`;
+    }
+    if(m.photoData)b+=`   [Foto als Anhang beigefügt]\n`;
+  });
+  b+=`\n══════════════════════════════\nErstellt mit ZählerApp\n`;
+  return b;
+}
+
+function sendMail(){
+  if(!sess){toast('Keine Sitzung','er');return;}
+  const photos=(sess.meters||[]).filter(m=>m.photoData);
+  if(photos.length>0){
+    sendMailWithAttachments();
+  }else{
+    const to=document.getElementById('m-to').value.trim();
+    const cc=document.getElementById('m-cc').value.trim();
+    const sub=encodeURIComponent(document.getElementById('m-sub').value);
+    const body=encodeURIComponent(buildMailBody());
+    let ml=`mailto:${to}?`;if(cc)ml+=`cc=${cc}&`;ml+=`subject=${sub}&body=${body}`;
+    window.location.href=ml;toast('E-Mail-App geöffnet ✓','ok');
+  }
+}
+
+function buildHtmlBody(thumbMap){
+  thumbMap=thumbMap||{};
+  const s=sess; const ms=s.meters||[];
+  const hasPhotos=ms.some(m=>m.photoData);
+
+  // Meter rows for table
+  const rows=ms.map((m,i)=>{
+    const cfg=CFG[m.type]||CFG.other;
+    const oi=obisL(m.obisCode);
+    const isA=m.mv==='analog';
+    const standCell=m.readingNT
+      ?`<span style="font-size:20px;font-weight:800;color:#1a1a2e">${m.reading||'–'} ${cfg.unit}</span><br><span style="color:#555;font-size:16px;font-weight:600">NT: ${m.readingNT} ${cfg.unit}</span>`
+      :`<span style="font-size:22px;font-weight:800;color:#1a1a2e">${m.reading||'–'} ${cfg.unit}</span>`;
+    const photoCell=m.photoData
+      ?(thumbMap[m.id]
+        ?`<img src="${thumbMap[m.id]}" style="width:100px;height:75px;object-fit:cover;border-radius:6px;border:1px solid #ddd">`
+        :`<img src="cid:photo_${m.id}" style="width:100px;height:75px;object-fit:cover;border-radius:6px;border:1px solid #ddd">`)
+      :`<span style="color:#aaa;font-size:13px">Kein Foto</span>`;
+    return `<tr style="border-bottom:2px solid #eee">
+      <td style="padding:14px 16px;font-size:16px;font-weight:700;color:#222">${cfg.icon}&nbsp;${cfg.name}${m.name?'<br><span style="color:#888;font-size:14px;font-weight:400">'+m.name+'</span>':''}</td>
+      <td style="padding:14px 16px;font-family:monospace;font-size:15px;color:#333;font-weight:600">${m.serial||'–'}</td>
+      <td style="padding:14px 16px;font-size:15px;color:#444">${m.floor||'–'}</td>
+      <td style="padding:14px 16px;font-size:15px;color:#444">${oi?'<strong>'+oi.code+'</strong><br><span style="color:#888;font-size:13px">'+oi.l+'</span>':'–'}</td>
+      <td style="padding:14px 16px;text-align:right;white-space:nowrap">${standCell}</td>
+      <td style="padding:14px 16px;text-align:center">${photoCell}</td>
+    </tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f8;font-family:Arial,Helvetica,sans-serif;font-size:16px">
+<div style="max-width:720px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.1)">
+
+  <!-- HEADER -->
+  <div style="background:#1a1a2e;padding:32px 36px">
+    <div style="font-size:13px;color:#e8ff47;letter-spacing:3px;margin-bottom:8px">ZÄHLER · ARCHIV</div>
+    <div style="font-size:30px;font-weight:800;color:#fff;line-height:1.1">Ablesebericht</div>
+    <div style="font-size:17px;color:#aab;margin-top:8px">${s.str}, ${s.plz} ${s.city} · ${s.date}</div>
+  </div>
+
+  <!-- OBJEKT INFO -->
+  <div style="padding:24px 36px;background:#f8f9ff;border-bottom:2px solid #e8e8f0">
+    <table style="width:100%;border-collapse:collapse">
+      <tr>
+        <td style="padding:6px 0;font-size:14px;color:#888;width:130px;font-weight:600">Adresse</td>
+        <td style="padding:6px 0;font-size:16px;color:#222;font-weight:700">${s.str}, ${s.plz} ${s.city}</td>
+      </tr>
+      ${s.bld?`<tr><td style="padding:6px 0;font-size:14px;color:#888;font-weight:600">Gebäude</td><td style="padding:6px 0;font-size:16px;color:#222;font-weight:700">${s.bld}</td></tr>`:''}
+      <tr>
+        <td style="padding:6px 0;font-size:14px;color:#888;font-weight:600">Ablesedatum</td>
+        <td style="padding:6px 0;font-size:16px;color:#222;font-weight:700">${s.date}</td>
+      </tr>
+      ${s.note?`<tr><td style="padding:6px 0;font-size:14px;color:#888;font-weight:600">Hinweis</td><td style="padding:6px 0;font-size:16px;color:#444">${s.note}</td></tr>`:''}
+    </table>
+  </div>
+
+  <!-- TABELLE ZÄHLERSTÄNDE -->
+  <div style="padding:28px 36px">
+    <div style="font-size:13px;font-weight:700;color:#888;letter-spacing:2px;margin-bottom:16px">ZÄHLERSTÄNDE</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:#f4f4f8;border-bottom:2px solid #ddd">
+          <th style="padding:12px 16px;text-align:left;font-size:13px;color:#666;font-weight:700;letter-spacing:1px">ZÄHLERART</th>
+          <th style="padding:12px 16px;text-align:left;font-size:13px;color:#666;font-weight:700;letter-spacing:1px">ZÄHLER-NR.</th>
+          <th style="padding:12px 16px;text-align:left;font-size:13px;color:#666;font-weight:700;letter-spacing:1px">STOCKWERK</th>
+          <th style="padding:12px 16px;text-align:left;font-size:13px;color:#666;font-weight:700;letter-spacing:1px">OBIS</th>
+          <th style="padding:12px 16px;text-align:right;font-size:13px;color:#666;font-weight:700;letter-spacing:1px">ZÄHLERSTAND</th>
+          <th style="padding:12px 16px;text-align:center;font-size:13px;color:#666;font-weight:700;letter-spacing:1px">FOTO</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- ZUSAMMENFASSUNG -->
+  <div style="padding:0 36px 28px">
+    <div style="background:#f4f4f8;border-radius:10px;padding:20px;display:flex;gap:32px;flex-wrap:wrap;align-items:center">
+      <div>
+        <div style="font-size:13px;color:#888;font-weight:600;margin-bottom:4px">Anzahl Zähler</div>
+        <div style="font-size:28px;font-weight:800;color:#1a1a2e">${ms.length}</div>
+      </div>
+      ${ms.filter(m=>m.photoData).length>0?`<div>
+        <div style="font-size:13px;color:#888;font-weight:600;margin-bottom:4px">Fotos beigefügt</div>
+        <div style="font-size:28px;font-weight:800;color:#1a1a2e">${ms.filter(m=>m.photoData).length}</div>
+      </div>`:''}
+      ${ms.filter(m=>m.reading).length>0?`<div>
+        <div style="font-size:13px;color:#888;font-weight:600;margin-bottom:4px">Stände erfasst</div>
+        <div style="font-size:28px;font-weight:800;color:#27ae60">${ms.filter(m=>m.reading).length} / ${ms.length}</div>
+      </div>`:''}
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="padding:18px 36px;background:#f8f9ff;border-top:2px solid #e8e8f0">
+    <div style="font-size:13px;color:#aaa;text-align:center">Erstellt mit ZählerApp · ${new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+  </div>
+
+</div>
+</body>
+</html>`;
+}
+
+async function sendMailWithAttachments(){
+  const to=document.getElementById('m-to').value.trim();
+  const cc=document.getElementById('m-cc').value.trim();
+  const subject=document.getElementById('m-sub').value;
+  const ms=sess.meters||[];
+  const photos=ms.filter(m=>m.photoData);
+
+  // Show progress
+  toast(`⏳ Bilder werden komprimiert…`,'');
+
+  // ── Compress all photos upfront ──
+  // Attachment: max 1024px wide, quality 55% → ~150–350 KB per photo
+  // Thumbnail:  max 240px wide, quality 45% → ~8–20 KB per photo (for HTML table)
+  const compressed=await Promise.all(photos.map(async m=>{
+    const att  = await compressImg(m.photoData, 1024, 0.55);
+    const thumb= await compressImg(m.photoData,  240, 0.45);
+    return {m, att, thumb,
+      attB64:  att.split(',')[1],
+      thumbB64:thumb.split(',')[1]
+    };
+  }));
+
+  // Estimate sizes
+  const totalKB=Math.round(compressed.reduce((s,c)=>s+c.attB64.length*0.75,0)/1024);
+
+  const bOuter='----ZaehlerMixed'+Date.now();
+  const bInner='----ZaehlerAlt'+(Date.now()+1);
+
+  // Build thumbnail map for HTML: cid → thumb base64 data-url
+  const thumbMap={};
+  compressed.forEach(c=>{ thumbMap[c.m.id]=c.thumb; });
+
+  let eml='';
+  eml+=`MIME-Version: 1.0\r\n`;
+  eml+=`Date: ${new Date().toUTCString()}\r\n`;
+  eml+=`From: ZaehlerApp <noreply@zaehlerapp.local>\r\n`;
+  if(to)eml+=`To: ${to}\r\n`;
+  if(cc)eml+=`Cc: ${cc}\r\n`;
+  eml+=`Subject: ${subject}\r\n`;
+  eml+=`Content-Type: multipart/mixed; boundary="${bOuter}"\r\n\r\n`;
+
+  // ── PART 1: multipart/alternative (plain + html) ──
+  eml+=`--${bOuter}\r\n`;
+  eml+=`Content-Type: multipart/alternative; boundary="${bInner}"\r\n\r\n`;
+
+  // Plain text fallback
+  eml+=`--${bInner}\r\n`;
+  eml+=`Content-Type: text/plain; charset=UTF-8\r\n`;
+  eml+=`Content-Transfer-Encoding: 8bit\r\n\r\n`;
+  eml+=buildMailBody().replace(/\n/g,'\r\n');
+  eml+=`\r\n`;
+
+  // HTML with embedded thumbnails (data-URL, no CID needed – keeps HTML self-contained)
+  const htmlContent=buildHtmlBody(thumbMap);
+  const htmlB64=btoa(unescape(encodeURIComponent(htmlContent)));
+  const htmlFolded=htmlB64.match(/.{1,76}/g).join('\r\n');
+  eml+=`--${bInner}\r\n`;
+  eml+=`Content-Type: text/html; charset=UTF-8\r\n`;
+  eml+=`Content-Transfer-Encoding: base64\r\n\r\n`;
+  eml+=htmlFolded;
+  eml+=`\r\n`;
+  eml+=`--${bInner}--\r\n`;
+
+  // ── PART 2+: compressed photo attachments ──
+  compressed.forEach((c,i)=>{
+    const cfg=CFG[c.m.type]||CFG.other;
+    const fname=`zaehler_${c.m.type}_${(c.m.serial||i+1).toString().replace(/\s/g,'_')}.jpg`;
+    const folded=c.attB64.match(/.{1,76}/g).join('\r\n');
+    eml+=`--${bOuter}\r\n`;
+    eml+=`Content-Type: image/jpeg; name="${fname}"\r\n`;
+    eml+=`Content-Transfer-Encoding: base64\r\n`;
+    eml+=`Content-Disposition: attachment; filename="${fname}"\r\n\r\n`;
+    eml+=folded;
+    eml+=`\r\n`;
+  });
+
+  eml+=`--${bOuter}--\r\n`;
+
+  const blob=new Blob([eml],{type:'message/rfc822'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`Ablesebericht_${(sess.str||'').replace(/\s/g,'_')}.eml`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  toast(`📎 .eml erstellt · ${photos.length} Foto(s) · ca. ${totalKB} KB gesamt ✓`,'ok');
+}
+
+function d2b(d){const[h,data]=d.split(',');const m=h.match(/:(.*?);/)[1];const b=atob(data);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return new Blob([a],{type:m});}
+async function shareOne(mi){
+  const m=sess.meters[mi];const cfg=CFG[m.type]||CFG.other;
+  try{
+    const f=new File([d2b(m.photoData)],`z_${m.type}.jpg`,{type:'image/jpeg'});
+    const sd={files:[f],title:cfg.name,text:`Stand: ${m.reading||'–'} · Nr.: ${m.serial||'–'}`};
+    if(navigator.canShare?.(sd)){await navigator.share(sd);toast('Geteilt ✓','ok');}
+    else toast('Nicht unterstützt','er');
+  }catch(e){if(e.name!=='AbortError')toast('Fehler','er');}
+}
+async function shareAll(){
+  const ps=(sess?.meters||[]).filter(m=>m.photoData);if(!ps.length)return;
+  try{
+    const fs=ps.map((m,i)=>new File([d2b(m.photoData)],`z_${m.type}_${i+1}.jpg`,{type:'image/jpeg'}));
+    const sd={files:fs,title:`Ablesebericht ${sess.str}`,text:buildMailBody()};
+    if(navigator.canShare?.(sd)){await navigator.share(sd);toast('Fotos geteilt ✓','ok');}
+    else toast('Datei-Sharing nicht unterstützt','er');
+  }catch(e){if(e.name!=='AbortError')toast('Fehler','er');}
+}
+
+function saveSession(){
+  if(!sess)return;
+  const idx=sessions.findIndex(s=>s.created===sess.created);
+  if(idx>=0)sessions[idx]=sess;else sessions.push(sess);
+  try{localStorage.setItem('zs',JSON.stringify(sessions));toast('Archiviert ✓','ok');}
+  catch{toast('Speicher voll – Fotos zu groß','er');}
+  buildHome();
+}
+
+function toast(msg,type=''){
+  const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('a-date').value=new Date().toISOString().split('T')[0];
+  buildHome();updateApiBadge();
+  // API-Key nur auf Wunsch – kein automatischer Dialog beim Start
+  initPWA();
+});
+
+// ========== PWA SETUP ==========
+function initPWA(){
+  // Register service worker (real file, requires HTTPS/netlify)
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/sw.js', {scope:'/'})
+      .then(()=>console.log('SW registered ✓'))
+      .catch(e=>console.warn('SW:', e));
+  }
+
+  // Update apple touch icon dynamically (canvas-generated)
+  const iconLink = document.querySelector('link[rel="apple-touch-icon"]');
+  if(iconLink) iconLink.href = '/icon-512.png';
+
+  // Install prompt banner
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if(!localStorage.getItem('install-dismissed')) showInstallBanner();
+  });
+
+  function showInstallBanner(){
+    if(document.getElementById('install-banner')) return;
+    const b = document.createElement('div');
+    b.id = 'install-banner';
+    b.style.cssText = 'position:fixed;bottom:76px;left:12px;right:12px;background:#1e2028;border:1px solid #e8ff4766;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:500;box-shadow:0 4px 20px #000a';
+    b.innerHTML = `
+      <div style="font-size:28px;flex-shrink:0">📲</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;color:#f0f2f8">Als App installieren</div>
+        <div style="font-size:12px;color:#8b8fa8;margin-top:2px">Auf Homescreen · funktioniert offline</div>
+      </div>
+      <button id="btn-install" style="background:#e8ff47;color:#000;border:none;border-radius:10px;padding:10px 16px;font-family:Syne,sans-serif;font-weight:700;font-size:13px;cursor:pointer;flex-shrink:0">Installieren</button>
+      <button id="btn-install-close" style="background:transparent;border:none;color:#555870;font-size:20px;cursor:pointer;padding:4px;flex-shrink:0">✕</button>`;
+    document.body.appendChild(b);
+    document.getElementById('btn-install').onclick = async () => {
+      if(!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const {outcome} = await deferredPrompt.userChoice;
+      deferredPrompt = null; b.remove();
+      if(outcome === 'accepted') toast('ZählerApp wird installiert ✓', 'ok');
+    };
+    document.getElementById('btn-install-close').onclick = () => {
+      b.remove(); localStorage.setItem('install-dismissed','1');
+    };
+  }
+
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('install-banner')?.remove();
+    toast('ZählerApp installiert ✓', 'ok');
+  });
+}
+</script>
+</body>
+</html>
